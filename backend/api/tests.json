@@ -1,0 +1,35 @@
+{
+  "tests": [
+    {
+      "name": "Get all quests",
+      "method": "GET",
+      "path": "/?path=quests",
+      "expectedStatus": 200,
+      "expectedBody": {
+        "0": {
+          "id": "number",
+          "title": "string",
+          "category": "string"
+        }
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Create new user",
+      "method": "POST",
+      "path": "/?path=users",
+      "body": {
+        "username": "test_user_unique_456",
+        "character_class": "runner",
+        "character_emoji": "🏃"
+      },
+      "expectedStatus": 201,
+      "expectedBody": {
+        "id": "number",
+        "username": "string",
+        "character_class": "string"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}

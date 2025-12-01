@@ -1,49 +1,127 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Icon from '@/components/ui/icon';
+import CharacterSelection from '@/components/CharacterSelection';
+import QuestDetailsModal from '@/components/QuestDetailsModal';
+
+const API_URL = 'https://functions.poehali.dev/735878dc-3553-4a4b-bc4a-6f95d725ddbf';
 
 const Index = () => {
-  const [userLevel] = useState(12);
-  const [userXP] = useState(2340);
-  const [userClass] = useState('Выносливый бегун');
+  const [hasCharacter, setHasCharacter] = useState(false);
+  const [userId, setUserId] = useState<number | null>(null);
+  const [userLevel, setUserLevel] = useState(12);
+  const [userXP, setUserXP] = useState(2340);
+  const [userClass, setUserClass] = useState('Выносливый бегун');
+  const [userEmoji, setUserEmoji] = useState('🏃');
   const [nextLevelXP] = useState(3000);
+  const [selectedQuest, setSelectedQuest] = useState<any>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [activeQuests, setActiveQuests] = useState<any[]>([]);
 
-  const activeQuests = [
-    {
-      id: 1,
-      title: 'Марафон Героя',
-      description: 'Пробеги 5 км за эту неделю',
-      progress: 3.2,
-      total: 5,
-      xp: 250,
-      category: 'cardio',
-      icon: 'Flame',
-    },
-    {
-      id: 2,
-      title: 'Сила Титана',
-      description: 'Выполни 50 отжиманий',
-      progress: 32,
-      total: 50,
-      xp: 150,
-      category: 'strength',
-      icon: 'Zap',
-    },
-    {
-      id: 3,
-      title: 'Командный Дух',
-      description: 'Участвуй в 3 командных тренировках',
-      progress: 1,
-      total: 3,
-      xp: 300,
-      category: 'team',
-      icon: 'Users',
-    },
-  ];
+  useEffect(() => {
+    const savedUserId = localStorage.getItem('nextupfit_user_id');
+    if (savedUserId) {
+      setUserId(parseInt(savedUserId));
+      setHasCharacter(true);
+      loadUserData(parseInt(savedUserId));
+    }
+  }, []);
+
+  const loadUserData = async (id: number) => {
+    try {
+      const response = await fetch(`${API_URL}?path=user/${id}`);
+      const userData = await response.json();
+      setUserLevel(userData.level);
+      setUserXP(userData.xp);
+      setUserClass(userData.character_class);
+      setUserEmoji(userData.character_emoji);
+    } catch (error) {
+      console.error('Error loading user data:', error);
+    }
+  };
+
+  const handleCharacterSelect = async (character: any) => {
+    try {
+      const response = await fetch(`${API_URL}?path=users`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: `player_${Date.now()}`,
+          character_class: character.name,
+          character_emoji: character.emoji,
+        }),
+      });
+      const newUser = await response.json();
+      setUserId(newUser.id);
+      localStorage.setItem('nextupfit_user_id', newUser.id.toString());
+      setUserClass(character.name);
+      setUserEmoji(character.emoji);
+      setHasCharacter(true);
+    } catch (error) {
+      console.error('Error creating user:', error);
+    }
+  };
+
+  const handleQuestClick = (quest: any) => {
+    setSelectedQuest(quest);
+    setIsModalOpen(true);
+  };
+
+  const handleProgressUpdate = (questId: number, newProgress: number) => {
+    setActiveQuests(prevQuests =>
+      prevQuests.map(q =>
+        q.id === questId ? { ...q, progress: newProgress } : q
+      )
+    );
+  };
+
+  if (!hasCharacter) {
+    return <CharacterSelection onSelect={handleCharacterSelect} />;
+  }
+
+  useEffect(() => {
+    if (userId) {
+      setActiveQuests([
+        {
+          id: 1,
+          title: 'Марафон Героя',
+          description: 'Пробеги 5 км за эту неделю',
+          progress: 3.2,
+          total: 5,
+          xp: 250,
+          category: 'cardio',
+          icon: 'Flame',
+          tips: ['Разминайся перед каждой пробежкой', 'Пей воду во время бега'],
+        },
+        {
+          id: 2,
+          title: 'Сила Титана',
+          description: 'Выполни 50 отжиманий',
+          progress: 32,
+          total: 50,
+          xp: 150,
+          category: 'strength',
+          icon: 'Zap',
+          tips: ['Держи спину ровно', 'Дыши правильно'],
+        },
+        {
+          id: 3,
+          title: 'Командный Дух',
+          description: 'Участвуй в 3 командных тренировках',
+          progress: 1,
+          total: 3,
+          xp: 300,
+          category: 'team',
+          icon: 'Users',
+          tips: ['Найди команду в своем классе', 'Поддерживай товарищей'],
+        },
+      ]);
+    }
+  }, [userId]);
 
   const achievements = [
     { icon: 'Trophy', name: 'Первый рубеж', color: 'text-secondary' },
@@ -99,7 +177,7 @@ const Index = () => {
             <div className="flex items-center gap-6">
               <div className="relative">
                 <div className="w-24 h-24 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-5xl animate-pulse-glow">
-                  🏃
+                  {userEmoji}
                 </div>
                 <Badge className="absolute -bottom-2 -right-2 bg-secondary text-secondary-foreground font-bold text-lg px-3 py-1">
                   {userLevel}
@@ -144,6 +222,7 @@ const Index = () => {
                   key={quest.id}
                   className={`border-4 ${getCategoryColor(quest.category)} transition-all hover:scale-105 hover:shadow-xl cursor-pointer`}
                   style={{ animationDelay: `${index * 100}ms` }}
+                  onClick={() => handleQuestClick(quest)}
                 >
                   <CardHeader>
                     <div className="flex items-start justify-between">
@@ -364,6 +443,13 @@ const Index = () => {
             </div>
           </TabsContent>
         </Tabs>
+
+        <QuestDetailsModal
+          quest={selectedQuest}
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onProgressUpdate={handleProgressUpdate}
+        />
       </div>
     </div>
   );
